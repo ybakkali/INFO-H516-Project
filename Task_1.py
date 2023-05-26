@@ -18,14 +18,8 @@ def open_raw_image(file_path, image_width, image_height):
     
     return image_array
 
-def split_image_into_blocks(image, block_size):
-    # Get the image dimensions
-    image_height, image_width = image.shape
-    
-    # Calculate the number of blocks in the image
-    num_blocks_height = image_height // block_size
-    num_blocks_width = image_width // block_size
-    
+def split_image_into_blocks(image, num_blocks_width, num_blocks_height, block_size):
+
     # Create an empty array to store the blocks
     blocks = np.empty((num_blocks_height, num_blocks_width, block_size, block_size), dtype=np.uint8)
     # Split the image into blocks
@@ -222,9 +216,8 @@ def zigzag_scan_block_to_array(block):
 
     return zigzag_block
 
-def zigzag_scan_array_to_block(array):
+def zigzag_scan_array_to_block(array, block_size):
 
-    block_size = int(np.sqrt(len(array)))
     block = np.empty((block_size, block_size))
 
     row, col = 0, 0
@@ -259,12 +252,10 @@ def zigzag_scan_array_to_block(array):
     return block
 
 
-def zigzag_scan(quanitzed_blocks):
-    # Get the image dimensions
-    num_blocks_height, num_blocks_width, block_height, block_width = quanitzed_blocks.shape
+def zigzag_scan(quanitzed_blocks, num_blocks_height, num_blocks_width, block_size=8):
 
     # Create an empty array to store the zigzag scanned blocks
-    zigzag_blocks = np.empty((num_blocks_height, num_blocks_width, block_height * block_width))
+    zigzag_blocks = np.empty((num_blocks_height, num_blocks_width, block_size * block_size))
 
     # Iterate over the blocks
     for i in range(num_blocks_height):
@@ -274,12 +265,7 @@ def zigzag_scan(quanitzed_blocks):
 
     return zigzag_blocks
 
-def inverse_zigzag_scan(zigzag_blocks):
-    # Get the image dimensions
-    num_blocks_height, num_blocks_width, array_length = zigzag_blocks.shape
-
-    # Calculate the block size
-    block_size = int(np.sqrt(array_length))
+def inverse_zigzag_scan(zigzag_blocks, num_blocks_height, num_blocks_width, block_size):
 
     # Create an empty array to reconstruct the blocks
     inverse_zigzag_blocks = np.empty((num_blocks_height, num_blocks_width, block_size, block_size))
@@ -288,7 +274,7 @@ def inverse_zigzag_scan(zigzag_blocks):
     for i in range(num_blocks_height):
         for j in range(num_blocks_width):
             # Calculate the inverse zigzag scanned block
-            inverse_zigzag_blocks[i, j] = zigzag_scan_array_to_block(zigzag_blocks[i, j])
+            inverse_zigzag_blocks[i, j] = zigzag_scan_array_to_block(zigzag_blocks[i, j], block_size)
 
     return inverse_zigzag_blocks
 
@@ -302,22 +288,22 @@ def entropy_coding(zigzag_blocks):
     # Encode the data
     encoded_blocks = codec.encode(arr)
 
-    return encoded_blocks, codec, zigzag_blocks.shape
+    return encoded_blocks, codec
 
-def inverse_entropy_coding(encoded_blocks, codec, shape):
+def inverse_entropy_coding(encoded_blocks, codec, num_blocks_height, num_blocks_width, block_size):
     
     # Decode the data
     decoded_blocks = codec.decode(encoded_blocks)
 
     # Reshape the decoded data into the original block shape
-    decoded_arr = np.array(decoded_blocks).reshape(shape)
+    decoded_arr = np.array(decoded_blocks).reshape((num_blocks_height, num_blocks_width, block_size * block_size))
 
     return decoded_arr
 
-def encode(image_array, quantization_matrix, block_size=8, decimals=0):
+def encode(image_array, quantization_matrix, num_blocks_width, num_blocks_height, block_size=8, decimals=0):
 
     # Split the image into blocks
-    image_blocks = split_image_into_blocks(image_array, block_size)
+    image_blocks = split_image_into_blocks(image_array, num_blocks_width, num_blocks_height, block_size)
 
     # Transform coding
     dct_coefficients_blocks = transform_coding(image_blocks, decimals=decimals)
@@ -326,21 +312,21 @@ def encode(image_array, quantization_matrix, block_size=8, decimals=0):
     quantized_blocks = quantization(dct_coefficients_blocks, quantization_matrix, decimals=decimals)
 
     # Zigzag scan
-    zigzad_blocks = zigzag_scan(quantized_blocks)
+    zigzad_blocks = zigzag_scan(quantized_blocks, num_blocks_width, num_blocks_height)
 
     # Entropy coding
-    encoded_blocks, codec, shape = entropy_coding(zigzad_blocks)
+    encoded_blocks, codec = entropy_coding(zigzad_blocks)
 
     # Return the quantized blocks
-    return encoded_blocks, codec, shape
+    return encoded_blocks, codec
 
-def decode(encoded_blocks, codec, shape, quantization_matrix, decimals=0):
+def decode(encoded_blocks, codec, quantization_matrix, num_blocks_width, num_blocks_height, block_size=8, decimals=0):
 
     # Inverse entropy coding
-    zigzad_blocks = inverse_entropy_coding(encoded_blocks, codec, shape)
+    zigzad_blocks = inverse_entropy_coding(encoded_blocks, codec, num_blocks_width, num_blocks_height, block_size)
 
     # Inverse zigzag scan
-    quantized_blocks = inverse_zigzag_scan(zigzad_blocks)
+    quantized_blocks = inverse_zigzag_scan(zigzad_blocks, num_blocks_width, num_blocks_height, block_size)
 
     # Inverse quantization
     dct_coefficients_blocks = inverse_quantization(quantized_blocks, quantization_matrix, decimals=decimals)
@@ -455,7 +441,11 @@ def display_image(original_image, compressed_image):
 if __name__ == "__main__":
     
     filename = "task_1/lena1.raw"
+    image_width, image_height = 256, 256
     block_size = 8
+    # Calculate the number of blocks in the image
+    num_blocks_height = image_height // block_size
+    num_blocks_width = image_width // block_size
     decimals = 0
     quantization_matrix = np.array([[16, 11, 10, 16, 24, 40, 51, 61],
                                     [12, 12, 14, 19, 26, 58, 60, 55],
@@ -466,13 +456,13 @@ if __name__ == "__main__":
                                     [49, 64, 78, 87, 103, 121, 120, 101],
                                     [72, 92, 95, 98, 112, 100, 103, 99]])
 
-
-    gray_image = open_raw_image(filename, 256, 256)
+    quantization_matrix *= 1
+    gray_image = open_raw_image(filename, image_width, image_height)
     t = time.time()
-    encoded_image, codec, shape = encode(gray_image, quantization_matrix, block_size, decimals)
+    encoded_image, codec = encode(gray_image, quantization_matrix, num_blocks_width, num_blocks_height, block_size, decimals)
     t1 = time.time()
     print("Encoding time: ", t1 - t)
-    decoded_image = decode(encoded_image, codec, shape, quantization_matrix, decimals)
+    decoded_image = decode(encoded_image, codec, quantization_matrix, num_blocks_width, num_blocks_height, block_size, decimals)
     print("Decoding time: ", time.time() - t1)
 
     compression_quality(gray_image, encoded_image)
