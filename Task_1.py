@@ -21,7 +21,7 @@ def open_raw_image(file_path, image_width, image_height):
 def split_image_into_blocks(image, num_blocks_width, num_blocks_height, block_size):
 
     # Create an empty array to store the blocks
-    blocks = np.empty((num_blocks_height, num_blocks_width, block_size, block_size), dtype=np.uint8)
+    blocks = np.zeros((num_blocks_height, num_blocks_width, block_size, block_size), dtype=np.uint8)
     # Split the image into blocks
     for i in range(num_blocks_height):
         for j in range(num_blocks_width):
@@ -38,7 +38,7 @@ def merge_blocks_into_image(image_blocks):
     image_width = num_blocks_width * block_size
 
     # Create an empty array to store the reconstructed image
-    image = np.empty((image_height, image_width), dtype=np.uint8)
+    image = np.zeros((image_height, image_width), dtype=np.uint8)
 
     # Merge the blocks into the image
     for i in range(num_blocks_height):
@@ -50,7 +50,7 @@ def merge_blocks_into_image(image_blocks):
 def dct_1D(array, normalize=True):
     
     N = len(array)
-    dct_coef = np.empty(N)
+    dct_coef = np.zeros(N)
 
     # Iterate over the 1D array
     for k in range(N):
@@ -70,7 +70,7 @@ def dct_2D(block):
     
     M, N = block.shape
     # Create an empty array to store the DCT coefficients
-    dct_block = np.empty((M, N))
+    dct_block = np.zeros((M, N))
 
     # Compute the 1D DCT for each row
     for i in range(M):
@@ -85,7 +85,7 @@ def dct_2D(block):
 def idct_1D(array, normalize=True):
         
     N = len(array)
-    dct_coef = np.empty(N)
+    dct_coef = np.zeros(N)
 
     for k in range(N):
             
@@ -107,7 +107,7 @@ def idct_2D(block):
     M, N = block.shape
 
     # Create an empty array to store the DCT coefficients
-    dct_block = np.empty((M, N))
+    dct_block = np.zeros((M, N))
 
     # Compute the 1D DCT for each row
     for i in range(M):
@@ -124,7 +124,7 @@ def transform_coding(image_blocks, decimals=0):
     num_blocks_height, num_blocks_width, block_height, block_width = image_blocks.shape
 
     # Create an empty array to store the DCT coefficients blocks
-    dct_coefficients_blocks = np.empty((num_blocks_height, num_blocks_width, block_height, block_width))
+    dct_coefficients_blocks = np.zeros((num_blocks_height, num_blocks_width, block_height, block_width))
 
     # Iterate over the blocks
     for i in range(num_blocks_height):
@@ -140,7 +140,7 @@ def inverse_transform_coding(dct_coefficients_blocks, decimals=0):
     num_blocks_height, num_blocks_width, block_height, block_width = dct_coefficients_blocks.shape
 
     # Create an empty array to store the DCT coefficients blocks
-    image_blocks = np.empty((num_blocks_height, num_blocks_width, block_height, block_width))
+    image_blocks = np.zeros((num_blocks_height, num_blocks_width, block_height, block_width))
 
     # Iterate over the blocks
     for i in range(num_blocks_height):
@@ -156,7 +156,7 @@ def quantization(dct_coefficients_blocks, quantization_matrix, decimals=0):
     num_blocks_height, num_blocks_width, block_height, block_width = dct_coefficients_blocks.shape
 
     # Create an empty array to store the quantized blocks
-    quantized_blocks = np.empty((num_blocks_height, num_blocks_width, block_height, block_width))
+    quantized_blocks = np.zeros((num_blocks_height, num_blocks_width, block_height, block_width))
 
     # Iterate over the blocks
     for i in range(num_blocks_height):
@@ -171,7 +171,7 @@ def inverse_quantization(quantized_blocks, quantization_matrix, decimals=0):
     num_blocks_height, num_blocks_width, block_height, block_width = quantized_blocks.shape
 
     # Create an empty array to store the quantized blocks
-    dct_coefficients_blocks = np.empty((num_blocks_height, num_blocks_width, block_height, block_width))
+    dct_coefficients_blocks = np.zeros((num_blocks_height, num_blocks_width, block_height, block_width))
 
     # Iterate over the blocks
     for i in range(num_blocks_height):
@@ -218,7 +218,7 @@ def zigzag_scan_block_to_array(block):
 
 def zigzag_scan_array_to_block(array, block_size):
 
-    block = np.empty((block_size, block_size))
+    block = np.zeros((block_size, block_size))
 
     row, col = 0, 0
     direction = 1  # 1 for upward movement, -1 for downward movement
@@ -252,53 +252,66 @@ def zigzag_scan_array_to_block(array, block_size):
     return block
 
 
-def zigzag_scan(quanitzed_blocks, num_blocks_height, num_blocks_width, block_size=8):
+def zigzag_scan(quanitzed_blocks, num_blocks_height, num_blocks_width):
 
     # Create an empty array to store the zigzag scanned blocks
-    zigzag_blocks = np.empty((num_blocks_height, num_blocks_width, block_size * block_size))
+    zigzag_blocks = []
 
     # Iterate over the blocks
     for i in range(num_blocks_height):
         for j in range(num_blocks_width):
-            # Calculate the zigzag scanned block
-            zigzag_blocks[i, j] = zigzag_scan_block_to_array(quanitzed_blocks[i, j])
+            # Calculate the zigzag scanned block and 
+            # Remove the trailing zeros
+            tmp = np.trim_zeros(zigzag_scan_block_to_array(quanitzed_blocks[i, j]), 'b')
 
+            # Convert each element to string
+            tmp = [str(element) for element in tmp]
+
+            zigzag_blocks.extend(tmp + ["EOB"])
     return zigzag_blocks
 
 def inverse_zigzag_scan(zigzag_blocks, num_blocks_height, num_blocks_width, block_size):
 
     # Create an empty array to reconstruct the blocks
-    inverse_zigzag_blocks = np.empty((num_blocks_height, num_blocks_width, block_size, block_size))
+    inverse_zigzag_blocks = np.zeros((num_blocks_height, num_blocks_width, block_size, block_size))
+
+    separator = "EOB"
+    result = []
+    sublist = []
+
+    for element in zigzag_blocks:
+        if element == separator:
+            result.append(sublist)
+            sublist = []
+        else:
+            sublist.append(np.float64(element))
 
     # Iterate over the blocks
     for i in range(num_blocks_height):
         for j in range(num_blocks_width):
             # Calculate the inverse zigzag scanned block
-            inverse_zigzag_blocks[i, j] = zigzag_scan_array_to_block(zigzag_blocks[i, j], block_size)
+            index = i * num_blocks_width + j
+            inverse_zigzag_blocks[i, j] = zigzag_scan_array_to_block(result[index], block_size)
 
     return inverse_zigzag_blocks
 
 def entropy_coding(zigzag_blocks):
 
-    arr = np.array(zigzag_blocks.flatten())
-
+    zigzag_blocks = tuple(zigzag_blocks)
     # Create a Huffman codec object
-    codec = HuffmanCodec.from_data(arr)
+    codec = HuffmanCodec.from_data(zigzag_blocks)
 
     # Encode the data
-    encoded_blocks = codec.encode(arr)
+    encoded_blocks = codec.encode(zigzag_blocks)
 
     return encoded_blocks, codec
 
-def inverse_entropy_coding(encoded_blocks, codec, num_blocks_height, num_blocks_width, block_size):
+def inverse_entropy_coding(encoded_blocks, codec):
     
     # Decode the data
     decoded_blocks = codec.decode(encoded_blocks)
 
-    # Reshape the decoded data into the original block shape
-    decoded_arr = np.array(decoded_blocks).reshape((num_blocks_height, num_blocks_width, block_size * block_size))
-
-    return decoded_arr
+    return decoded_blocks
 
 def encode(image_array, quantization_matrix, num_blocks_width, num_blocks_height, block_size=8, decimals=0):
 
@@ -323,7 +336,7 @@ def encode(image_array, quantization_matrix, num_blocks_width, num_blocks_height
 def decode(encoded_blocks, codec, quantization_matrix, num_blocks_width, num_blocks_height, block_size=8, decimals=0):
 
     # Inverse entropy coding
-    zigzad_blocks = inverse_entropy_coding(encoded_blocks, codec, num_blocks_width, num_blocks_height, block_size)
+    zigzad_blocks = inverse_entropy_coding(encoded_blocks, codec)
 
     # Inverse zigzag scan
     quantized_blocks = inverse_zigzag_scan(zigzad_blocks, num_blocks_width, num_blocks_height, block_size)
@@ -356,8 +369,8 @@ def compression_quality(gray_image, encoded_image):
     # Print the results
     print('Original image size (bits): ', original_image_size)
     print('Compressed image size (bits): ', compressed_image_size)
-    print('Compression factor: ', compression_factor)
-    print('Bit per pixel (BPP): ', bpp)
+    print('Compression factor: ', round(compression_factor,2))
+    print('Bit per pixel (BPP): ', round(bpp,2))
 
 def PSNR(original_image, compressed_image):
     mse = np.mean((original_image - compressed_image) ** 2)
