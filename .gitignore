@@ -1,0 +1,5 @@
+resources/
+*ipynb
+.vscode/
+__pycache__/
+media/output/

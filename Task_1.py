@@ -1,35 +1,38 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from itertools import groupby
 import time
 from dahuffman import HuffmanCodec
 
 
 def open_raw_image(file_path, image_width, image_height):
+
     # Read the raw file as binary
     with open(file_path, 'rb') as f:
         # Read the binary data
         raw_data = f.read()
     
-    # Convert the raw data for 8-bit grayscale image to a numpy integer array
+    # Convert the binary data to an array
     image_array = np.frombuffer(raw_data, dtype=np.uint8)
     
-    # Reshape the array based on the image dimensions
+    # Reshape the array to a 2D image
     image_array = image_array.reshape((image_height, image_width))
     
     return image_array
 
-def split_image_into_blocks(image, num_blocks_width, num_blocks_height, block_size):
+def split_image_into_blocks(image, num_blocks_height, num_blocks_width, block_size):
 
     # Create an empty array to store the blocks
     blocks = np.zeros((num_blocks_height, num_blocks_width, block_size, block_size), dtype=np.uint8)
+
     # Split the image into blocks
-    for i in range(num_blocks_height):
-        for j in range(num_blocks_width):
-            blocks[i, j] = image[i*block_size:(i+1)*block_size, j*block_size:(j+1)*block_size]
+    for i, j in np.ndindex(num_blocks_height, num_blocks_width):
+        blocks[i, j] = image[i*block_size:(i+1)*block_size, j*block_size:(j+1)*block_size]
     
     return blocks
 
 def merge_blocks_into_image(image_blocks):
+    
     # Get the image dimensions
     num_blocks_height, num_blocks_width, block_size, _ = image_blocks.shape
 
@@ -41,9 +44,8 @@ def merge_blocks_into_image(image_blocks):
     image = np.zeros((image_height, image_width), dtype=np.uint8)
 
     # Merge the blocks into the image
-    for i in range(num_blocks_height):
-        for j in range(num_blocks_width):
-            image[i*block_size:(i+1)*block_size, j*block_size:(j+1)*block_size] = np.clip(image_blocks[i, j], 0, 255)
+    for i, j in np.ndindex(num_blocks_height, num_blocks_width):
+        image[i*block_size:(i+1)*block_size, j*block_size:(j+1)*block_size] = np.clip(image_blocks[i, j], 0, 255)
     
     return image
 
@@ -120,64 +122,50 @@ def idct_2D(block):
     return dct_block
 
 def transform_coding(image_blocks, decimals=0):
-    # Get the image dimensions
-    num_blocks_height, num_blocks_width, block_height, block_width = image_blocks.shape
 
     # Create an empty array to store the DCT coefficients blocks
-    dct_coefficients_blocks = np.zeros((num_blocks_height, num_blocks_width, block_height, block_width))
+    dct_coefficients_blocks = np.zeros(image_blocks.shape)
 
     # Iterate over the blocks
-    for i in range(num_blocks_height):
-        for j in range(num_blocks_width):
-            # Calculate the DCT coefficients
-            
-            dct_coefficients_blocks[i, j] = dct_2D(image_blocks[i, j])
+    for i, j in np.ndindex(image_blocks.shape[:2]):
+        # Calculate the DCT coefficients
+        dct_coefficients_blocks[i, j] = dct_2D(image_blocks[i, j])
 
     return np.round(dct_coefficients_blocks, decimals=decimals)
 
 def inverse_transform_coding(dct_coefficients_blocks, decimals=0):
-    # Get the image dimensions
-    num_blocks_height, num_blocks_width, block_height, block_width = dct_coefficients_blocks.shape
 
     # Create an empty array to store the DCT coefficients blocks
-    image_blocks = np.zeros((num_blocks_height, num_blocks_width, block_height, block_width))
+    image_blocks = np.zeros(dct_coefficients_blocks.shape)
 
     # Iterate over the blocks
-    for i in range(num_blocks_height):
-        for j in range(num_blocks_width):
-            # Calculate the DCT coefficients
-            
-            image_blocks[i, j] = idct_2D(dct_coefficients_blocks[i, j])
+    for i, j in np.ndindex(dct_coefficients_blocks.shape[:2]):
+        # Calculate the DCT coefficients
+        image_blocks[i, j] = idct_2D(dct_coefficients_blocks[i, j])
 
     return np.round(image_blocks, decimals=decimals)
 
 def quantization(dct_coefficients_blocks, quantization_matrix, decimals=0):
-    # Get the image dimensions
-    num_blocks_height, num_blocks_width, block_height, block_width = dct_coefficients_blocks.shape
 
     # Create an empty array to store the quantized blocks
-    quantized_blocks = np.zeros((num_blocks_height, num_blocks_width, block_height, block_width))
+    quantized_blocks = np.zeros(dct_coefficients_blocks.shape)
 
     # Iterate over the blocks
-    for i in range(num_blocks_height):
-        for j in range(num_blocks_width):
-            # Calculate the quantized coefficients
-            quantized_blocks[i, j] = dct_coefficients_blocks[i, j] / quantization_matrix
+    for i, j in np.ndindex(dct_coefficients_blocks.shape[:2]):
+        # Calculate the quantized coefficients
+        quantized_blocks[i, j] = dct_coefficients_blocks[i, j] / quantization_matrix
 
     return np.round(quantized_blocks, decimals=decimals)
 
 def inverse_quantization(quantized_blocks, quantization_matrix, decimals=0):
-    # Get the image dimensions
-    num_blocks_height, num_blocks_width, block_height, block_width = quantized_blocks.shape
 
     # Create an empty array to store the quantized blocks
-    dct_coefficients_blocks = np.zeros((num_blocks_height, num_blocks_width, block_height, block_width))
+    dct_coefficients_blocks = np.zeros(quantized_blocks.shape)
 
     # Iterate over the blocks
-    for i in range(num_blocks_height):
-        for j in range(num_blocks_width):
-            # Calculate the quantized coefficients
-            dct_coefficients_blocks[i, j] = quantized_blocks[i, j] * quantization_matrix
+    for i, j in np.ndindex(quantized_blocks.shape[:2]):
+        # Calculate the quantized coefficients
+        dct_coefficients_blocks[i, j] = quantized_blocks[i, j] * quantization_matrix
 
     return np.round(dct_coefficients_blocks, decimals=decimals)
 
@@ -252,71 +240,52 @@ def zigzag_scan_array_to_block(array, block_size):
     return block
 
 
-def zigzag_scan(quanitzed_blocks, num_blocks_height, num_blocks_width):
+def zigzag_scan(quanitzed_blocks):
 
     # Create an empty array to store the zigzag scanned blocks
     zigzag_blocks = []
 
     # Iterate over the blocks
-    for i in range(num_blocks_height):
-        for j in range(num_blocks_width):
-            # Calculate the zigzag scanned block and 
-            # Remove the trailing zeros
-            tmp = np.trim_zeros(zigzag_scan_block_to_array(quanitzed_blocks[i, j]), 'b')
-
-            # Convert each element to string
-            tmp = [str(element) for element in tmp]
-
-            zigzag_blocks.extend(tmp + ["EOB"])
+    for i, j in np.ndindex(quanitzed_blocks.shape[:2]):
+        # Parse the block on a zigzag pattern and remove the trailing zeros
+        block_1D = np.trim_zeros(zigzag_scan_block_to_array(quanitzed_blocks[i, j]), 'b')
+        if not block_1D:
+            # Empty block after trimming the zeros
+            block_1D = [0]
+        zigzag_blocks.extend(block_1D)
+        
+        # Add infinity as a separator between blocks (EOB)
+        zigzag_blocks.append(np.inf)
+    
     return zigzag_blocks
 
 def inverse_zigzag_scan(zigzag_blocks, num_blocks_height, num_blocks_width, block_size):
 
-    # Create an empty array to reconstruct the blocks
-    inverse_zigzag_blocks = np.zeros((num_blocks_height, num_blocks_width, block_size, block_size))
-
-    separator = "EOB"
-    result = []
-    sublist = []
-
-    for element in zigzag_blocks:
-        if element == separator:
-            result.append(sublist)
-            sublist = []
-        else:
-            sublist.append(np.float64(element))
-
-    # Iterate over the blocks
-    for i in range(num_blocks_height):
-        for j in range(num_blocks_width):
-            # Calculate the inverse zigzag scanned block
-            index = i * num_blocks_width + j
-            inverse_zigzag_blocks[i, j] = zigzag_scan_array_to_block(result[index], block_size)
-
-    return inverse_zigzag_blocks
+    # Split the bitstream into list of 2D blocks
+    separator = np.inf
+    inverse_zigzag_blocks = [zigzag_scan_array_to_block(list(group), block_size) for key, group in groupby(zigzag_blocks, lambda x: x != separator) if key]
+    # Reshape the list of 2D blocks to a 4D array
+    return  np.array(inverse_zigzag_blocks).reshape((num_blocks_height, num_blocks_width, block_size, block_size))
 
 def entropy_coding(zigzag_blocks):
 
-    zigzag_blocks = tuple(zigzag_blocks)
     # Create a Huffman codec object
     codec = HuffmanCodec.from_data(zigzag_blocks)
 
     # Encode the data
-    encoded_blocks = codec.encode(zigzag_blocks)
+    bitstream = codec.encode(zigzag_blocks)
 
-    return encoded_blocks, codec
+    return bitstream, codec
 
-def inverse_entropy_coding(encoded_blocks, codec):
-    
+def inverse_entropy_coding(bitstream, codec): 
     # Decode the data
-    decoded_blocks = codec.decode(encoded_blocks)
+    return codec.decode(bitstream)
 
-    return decoded_blocks
 
-def encode(image_array, quantization_matrix, num_blocks_width, num_blocks_height, block_size=8, decimals=0):
+def encode(image_array, quantization_matrix, num_blocks_height, num_blocks_width, block_size=8, decimals=0):
 
     # Split the image into blocks
-    image_blocks = split_image_into_blocks(image_array, num_blocks_width, num_blocks_height, block_size)
+    image_blocks = split_image_into_blocks(image_array, num_blocks_height, num_blocks_width, block_size)
 
     # Transform coding
     dct_coefficients_blocks = transform_coding(image_blocks, decimals=decimals)
@@ -325,21 +294,21 @@ def encode(image_array, quantization_matrix, num_blocks_width, num_blocks_height
     quantized_blocks = quantization(dct_coefficients_blocks, quantization_matrix, decimals=decimals)
 
     # Zigzag scan
-    zigzad_blocks = zigzag_scan(quantized_blocks, num_blocks_width, num_blocks_height)
+    zigzad_blocks = zigzag_scan(quantized_blocks)
 
     # Entropy coding
-    encoded_blocks, codec = entropy_coding(zigzad_blocks)
+    bitstream, codec = entropy_coding(zigzad_blocks)
 
     # Return the quantized blocks
-    return encoded_blocks, codec
+    return bitstream, codec
 
-def decode(encoded_blocks, codec, quantization_matrix, num_blocks_width, num_blocks_height, block_size=8, decimals=0):
+def decode(bitstream, codec, quantization_matrix, num_blocks_height, num_blocks_width, block_size=8, decimals=0):
 
     # Inverse entropy coding
-    zigzad_blocks = inverse_entropy_coding(encoded_blocks, codec)
+    zigzad_blocks = inverse_entropy_coding(bitstream, codec)
 
     # Inverse zigzag scan
-    quantized_blocks = inverse_zigzag_scan(zigzad_blocks, num_blocks_width, num_blocks_height, block_size)
+    quantized_blocks = inverse_zigzag_scan(zigzad_blocks, num_blocks_height, num_blocks_width, block_size)
 
     # Inverse quantization
     dct_coefficients_blocks = inverse_quantization(quantized_blocks, quantization_matrix, decimals=decimals)
@@ -382,17 +351,20 @@ def PSNR(original_image, compressed_image):
     return psnr
 
 # (PSNR vs quantization scale)
-def rate_distortion_curve(gray_image, block_size, quantization_matrix):
+def rate_distortion_curve(gray_image, quantization_matrix, num_blocks_height, num_blocks_width, block_size, decimals):
     # Create an empty array to store the PSNR values
     psnr_values = []
 
     # Iterate over the quantization matrix
     for i in range(1, 100):
+        # Print the current quantization scale
+        print(f"Quantization scale: {i}")
+
         # Encode the image
-        encoded_image, codec, shape = encode(gray_image, block_size, quantization_matrix * i)
+        encoded_image, codec = encode(gray_image, block_size, quantization_matrix * i, num_blocks_height, num_blocks_width, block_size)
 
         # Decode the image
-        decoded_image = decode(encoded_image, codec, shape, quantization_matrix * i)
+        decoded_image = decode(encoded_image, codec, quantization_matrix * i, num_blocks_height, num_blocks_width, block_size)
 
         # Calculate the PSNR
         psnr = PSNR(gray_image, decoded_image)
@@ -407,18 +379,21 @@ def rate_distortion_curve(gray_image, block_size, quantization_matrix):
     plt.show()
 
 # (PSNR vs data size)
-def rate_distortion_curve_2(gray_image, block_size, quantization_matrix):
+def rate_distortion_curve_2(gray_image, quantization_matrix, num_blocks_height, num_blocks_width, block_size, decimals):
     # Create an empty array to store the PSNR values
     psnr_values = []
     data_size = []
 
     # Iterate over the quantization matrix
     for i in range(1, 100):
+        # Print the current quantization scale
+        print(f"Quantization scale: {i}")
+
         # Encode the image
-        encoded_image, codec, shape = encode(gray_image, quantization_matrix * i, block_size)
+        encoded_image, codec = encode(gray_image, quantization_matrix * i, num_blocks_height, num_blocks_width, block_size)
 
         # Decode the image
-        decoded_image = decode(encoded_image, codec, shape, quantization_matrix * i)
+        decoded_image = decode(encoded_image, codec, quantization_matrix * i, num_blocks_height, num_blocks_width, block_size)
 
         # Calculate the PSNR
         psnr = PSNR(gray_image, decoded_image)
@@ -433,7 +408,7 @@ def rate_distortion_curve_2(gray_image, block_size, quantization_matrix):
     plt.ylabel('PSNR')
     plt.show()
 
-def display_image(original_image, compressed_image):
+def display_images(original_image, compressed_image):
     # Create a figure
     fig = plt.figure(figsize=(10, 10))
 
@@ -453,10 +428,9 @@ def display_image(original_image, compressed_image):
 
 if __name__ == "__main__":
     
-    filename = "task_1/lena1.raw"
-    image_width, image_height = 256, 256
-    block_size = 8
-    # Calculate the number of blocks in the image
+    filename = "media/input/lena1.raw"
+    image_height, image_width, block_size = 256, 256, 8
+    # The number of blocks in the height and width axes
     num_blocks_height = image_height // block_size
     num_blocks_width = image_width // block_size
     decimals = 0
@@ -472,14 +446,14 @@ if __name__ == "__main__":
     quantization_matrix *= 1
     gray_image = open_raw_image(filename, image_width, image_height)
     t = time.time()
-    encoded_image, codec = encode(gray_image, quantization_matrix, num_blocks_width, num_blocks_height, block_size, decimals)
+    encoded_image, codec = encode(gray_image, quantization_matrix, num_blocks_height, num_blocks_width, block_size, decimals)
+    print(f"Encoding time: {round(time.time() - t, 2)}s")
     t1 = time.time()
-    print("Encoding time: ", t1 - t)
-    decoded_image = decode(encoded_image, codec, quantization_matrix, num_blocks_width, num_blocks_height, block_size, decimals)
-    print("Decoding time: ", time.time() - t1)
+    decoded_image = decode(encoded_image, codec, quantization_matrix, num_blocks_height, num_blocks_width, block_size, decimals)
+    print(f"Decoding time: {round(time.time() - t1, 2)}s")
 
     compression_quality(gray_image, encoded_image)
-    display_image(gray_image, decoded_image)
+    display_images(gray_image, decoded_image)
 
-    # rate_distortion_curve(gray_image, block_size, quantization_matrix)
-    # rate_distortion_curve_2(gray_image, block_size, quantization_matrix)
+    # rate_distortion_curve(gray_image, quantization_matrix, num_blocks_height, num_blocks_width, block_size, decimals)
+    # rate_distortion_curve_2(gray_image, quantization_matrix, num_blocks_height, num_blocks_width, block_size, decimals)

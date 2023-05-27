@@ -1,10 +1,5 @@
 from Task_1 import *
 
-video_path = "task_2/foreman_qcif_mono.y4m"
-#video_path = "task_2/foreman_qcif.y4m"
-#video_path = "task_2/foreman_cif.y4m"
-
-
 def read_y4m_video(video_path):
 
     frames_list = []
@@ -62,6 +57,12 @@ def create_y4m_video(video_path, frames, metadata):
 
 if __name__ == "__main__":
 
+    filename = "media/input/foreman_qcif_mono.y4m"
+    frames, metadata = read_y4m_video(filename)
+    frame_height, frame_width, block_size = int(metadata["H"]), int(metadata["W"]), 8
+    num_blocks_height = frame_height // block_size
+    num_blocks_width = frame_width // block_size
+    decimals = 0
     quantization_matrix = np.array([[16, 11, 10, 16, 24, 40, 51, 61],
                                     [12, 12, 14, 19, 26, 58, 60, 55],
                                     [14, 13, 16, 24, 40, 57, 69, 56],
@@ -71,14 +72,19 @@ if __name__ == "__main__":
                                     [49, 64, 78, 87, 103, 121, 120, 101],
                                     [72, 92, 95, 98, 112, 100, 103, 99]])
 
-    frames, metadata = read_y4m_video("task_2/foreman_qcif_mono.y4m")
-    #frames = np.stack(frames, axis=0)
-    compressed_frames = []
-
+    encoded_frames = []
+    t = time.time()
     for i, frame in enumerate(frames):
-        print(f'Frame {i}')
-        encode_frame, codec, shape = encode(frame, quantization_matrix)
-        decode_frame = decode(encode_frame, codec, shape, quantization_matrix)
-        compressed_frames.append(decode_frame)
+        print(f"Encoding frame {i}")
+        bitstream, codec = encode(frame, quantization_matrix, num_blocks_height, num_blocks_width, block_size, decimals)
+        encoded_frames.append((bitstream, codec))
 
-    create_y4m_video("task_2/foreman_qcif_mono_compressed.y4m", compressed_frames, metadata)
+    compressed_frames = []
+    for i, encoded_frame in enumerate(encoded_frames):
+        print(f"Decoding frame {i}")
+        bitstream, codec = encoded_frame
+        decoded_frame = decode(bitstream, codec, quantization_matrix, num_blocks_height, num_blocks_width, block_size, decimals)
+        compressed_frames.append(decoded_frame)
+    
+    print(f"Time: {round(time.time() - t, 2)}")
+    create_y4m_video("media/output/foreman_qcif_mono_task2.y4m", compressed_frames, metadata)
