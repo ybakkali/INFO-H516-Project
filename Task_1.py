@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 from itertools import groupby
 import time
 from dahuffman import HuffmanCodec
@@ -348,65 +349,47 @@ def PSNR(original_image, compressed_image):
         return 100
     max_pixel = 255.0
     psnr = 10 * np.log10(max_pixel ** 2 / mse)
-    return psnr
+    return round(psnr, 2)
 
-# (PSNR vs quantization scale)
-def rate_distortion_curve(gray_image, quantization_matrix, num_blocks_height, num_blocks_width, block_size, decimals):
+# PSNR rate-distortion curve
+def rate_distortion_curve(gray_image, type, quantization_matrix, num_blocks_height, num_blocks_width, block_size, decimals):
     # Create an empty array to store the PSNR values
     psnr_values = []
+    x_values = []
+    quantization_levels = np.arange(0.1, 1.1, 0.1)
 
-    # Iterate over the quantization matrix
-    for i in range(1, 100):
-        # Print the current quantization scale
-        print(f"Quantization scale: {i}")
+    # Control of the compression rate
+    for i in quantization_levels:
+        
+        print(f"Quantization level: {i}")
 
         # Encode the image
-        encoded_image, codec = encode(gray_image, block_size, quantization_matrix * i, num_blocks_height, num_blocks_width, block_size)
+        bitstream, codec = encode(gray_image, quantization_matrix * i, num_blocks_height, num_blocks_width, block_size, decimals)
 
         # Decode the image
-        decoded_image = decode(encoded_image, codec, quantization_matrix * i, num_blocks_height, num_blocks_width, block_size)
+        decoded_image = decode(bitstream, codec, quantization_matrix * i, num_blocks_height, num_blocks_width, block_size, decimals)
 
         # Calculate the PSNR
         psnr = PSNR(gray_image, decoded_image)
 
-        # Append the PSNR value
+        # Append the values
+        x_values.append(len(bitstream))
         psnr_values.append(psnr)
 
-    # Plot the rate-distortion curve
-    plt.plot(range(1, 100), psnr_values)
-    plt.xlabel('Compression Rate')
-    plt.ylabel('PSNR')
-    plt.show()
-
-# (PSNR vs data size)
-def rate_distortion_curve_2(gray_image, quantization_matrix, num_blocks_height, num_blocks_width, block_size, decimals):
-    # Create an empty array to store the PSNR values
-    psnr_values = []
-    data_size = []
-
-    # Iterate over the quantization matrix
-    for i in range(1, 100):
-        # Print the current quantization scale
-        print(f"Quantization scale: {i}")
-
-        # Encode the image
-        encoded_image, codec = encode(gray_image, quantization_matrix * i, num_blocks_height, num_blocks_width, block_size)
-
-        # Decode the image
-        decoded_image = decode(encoded_image, codec, quantization_matrix * i, num_blocks_height, num_blocks_width, block_size)
-
-        # Calculate the PSNR
-        psnr = PSNR(gray_image, decoded_image)
-
-        # Append the PSNR value
-        psnr_values.append(psnr)
-        data_size.append(len(encoded_image) * 8)
-
-    # Plot the rate-distortion curve
-    plt.plot(data_size, psnr_values)
-    plt.xlabel('Data Size')
-    plt.ylabel('PSNR')
-    plt.show()
+    if type == 'bpp':
+        x_values = np.array(x_values) * 8 / (gray_image.shape[0] * gray_image.shape[1])
+        label = 'Bit per pixel (BPP)'
+    elif type == 'scale':
+        x_values = quantization_levels
+        label = 'Quantization Scale'
+    elif type == 'size':
+        label = 'File Size (bytes)'
+    else:
+        raise Exception('Invalid type')
+    
+    fig = go.Figure(data=go.Scatter(x=x_values, y=psnr_values, mode='lines+markers', name='lines+markers', text=np.round(quantization_levels, 1)))
+    fig.update_layout(title='Rate-Distortion Curve (PSNR vs. Quantization Scale)', xaxis_title=label, yaxis_title='PSNR (dB)')
+    fig.show()
 
 def display_images(original_image, compressed_image):
     # Create a figure
@@ -445,15 +428,14 @@ if __name__ == "__main__":
 
     quantization_matrix *= 1
     gray_image = open_raw_image(filename, image_width, image_height)
-    t = time.time()
-    encoded_image, codec = encode(gray_image, quantization_matrix, num_blocks_height, num_blocks_width, block_size, decimals)
-    print(f"Encoding time: {round(time.time() - t, 2)}s")
-    t1 = time.time()
-    decoded_image = decode(encoded_image, codec, quantization_matrix, num_blocks_height, num_blocks_width, block_size, decimals)
-    print(f"Decoding time: {round(time.time() - t1, 2)}s")
+    # t = time.time()
+    # encoded_image, codec = encode(gray_image, quantization_matrix, num_blocks_height, num_blocks_width, block_size, decimals)
+    # print(f"Encoding time: {round(time.time() - t, 2)}s")
+    # t1 = time.time()
+    # decoded_image = decode(encoded_image, codec, quantization_matrix, num_blocks_height, num_blocks_width, block_size, decimals)
+    # print(f"Decoding time: {round(time.time() - t1, 2)}s")
 
-    compression_quality(gray_image, encoded_image)
-    display_images(gray_image, decoded_image)
+    # compression_quality(gray_image, encoded_image)
+    # display_images(gray_image, decoded_image)
 
-    # rate_distortion_curve(gray_image, quantization_matrix, num_blocks_height, num_blocks_width, block_size, decimals)
-    # rate_distortion_curve_2(gray_image, quantization_matrix, num_blocks_height, num_blocks_width, block_size, decimals)
+    rate_distortion_curve(gray_image, "size", quantization_matrix, num_blocks_height, num_blocks_width, block_size, decimals)

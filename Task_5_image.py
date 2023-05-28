@@ -1,7 +1,6 @@
 from Task_1 import *
 from PIL import Image
-import os
-import matplotlib.pyplot as plt
+from os.path import getsize
 
 def open_raw_image_PIL(filename, image_width, image_height):
     with open(filename, 'rb') as file:
@@ -10,10 +9,6 @@ def open_raw_image_PIL(filename, image_width, image_height):
     # Specify the appropriate mode ('L' for grayscale, 'RGB' for color, etc.)
     image = Image.frombytes('L', (image_width, image_height), raw_data)
     return image
-
-def get_file_size(file_path):
-    return os.path.getsize(file_path)
-
 
 if __name__ == "__main__":
 
@@ -39,9 +34,11 @@ if __name__ == "__main__":
 
     psnr_values_task1 = []
     file_sizes_task1 = []
+    # scale from 0.1 to 1.0 (best) and from 10 to 90 (worst) representing the quantization scale factor
+    quantization_levels = np.concatenate((np.arange(0.1, 1.1, 0.1), np.arange(5, 30, 5)))
 
     # Iterate over the quantization matrix
-    for i in range(1, 100, 10):
+    for i in quantization_levels:
   
         # Encode the image
         encoded_image, codec = encode(gray_image, quantization_matrix * i, num_blocks_height, num_blocks_width, block_size)
@@ -52,18 +49,20 @@ if __name__ == "__main__":
         # Calculate the PSNR
         psnr = PSNR(gray_image, decoded_image)
 
-        # Append the PSNR value
+        # Append the values
         psnr_values_task1.append(psnr)
         file_sizes_task1.append(len(encoded_image))
 
     psnr_values_jpeg = []
     file_sizes_jpeg = []
+    # scale from 0 (worst) to 95 (best)
+    quality_range = range(0, 96, 10)
 
-    for quality in range(0, 96, 10):
+    for quality in quality_range:
         # Compress using JPEG
         jpeg_compressed_image = 'media/output/jpeg_compression.jpg'
         gray_image_PIL.save(jpeg_compressed_image, 'JPEG', quality=quality)
-        jpeg_file_size = get_file_size(jpeg_compressed_image)
+        jpeg_file_size = getsize(jpeg_compressed_image)
         psnr = PSNR(gray_image, np.array(Image.open(jpeg_compressed_image)).astype(np.uint8))
         
         psnr_values_jpeg.append(psnr)
@@ -72,28 +71,26 @@ if __name__ == "__main__":
 
     psnr_values_jpeg2000 = []
     file_sizes_jpeg2000 = []
+    # scale from 10 to 90 representing an approximate size compression
+    quality_layers_range = range(10, 100, 10)
 
-    for layers in range(10, 91, 10):
+    for layers in quality_layers_range:
         # Compress using JPEG2000
         jpeg2000_compressed_image = 'media/output/jpeg2000_compression.jp2'
         gray_image_PIL.save(jpeg2000_compressed_image, 'JPEG2000', quality_mode='rates', quality_layers=[layers], codeblock_size=(8, 8))
-        jpeg2000_file_size = get_file_size(jpeg2000_compressed_image)
+        jpeg2000_file_size = getsize(jpeg2000_compressed_image)
         psnr = PSNR(gray_image, np.array(Image.open(jpeg2000_compressed_image)).astype(np.uint8))
         
         psnr_values_jpeg2000.append(psnr)
         file_sizes_jpeg2000.append(jpeg2000_file_size)
 
     # Plot rate-distortion curve
-    plt.figure()
-    plt.plot(file_sizes_task1, psnr_values_task1, 'o-', label='Task 1')
-    plt.plot(file_sizes_jpeg, psnr_values_jpeg, 'o-', label='JPEG')
-    plt.plot(file_sizes_jpeg2000, psnr_values_jpeg2000, 'o-', label='JPEG2000')
-    plt.xlabel('File Size (bytes)')
-    plt.ylabel('PSNR (dB)')
-    plt.title('Rate-Distortion Curve (PSNR vs. File Size)')
-    plt.legend()
-    plt.grid(True)
-    plt.show()
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=file_sizes_task1, y=psnr_values_task1, mode='lines+markers', name='Task 1', text=np.round(quantization_levels, 1)))
+    fig.add_trace(go.Scatter(x=file_sizes_jpeg, y=psnr_values_jpeg, mode='lines+markers', name='JPEG', text=list(quality_range)))
+    fig.add_trace(go.Scatter(x=file_sizes_jpeg2000, y=psnr_values_jpeg2000, mode='lines+markers', name='JPEG2000', text=list(quality_layers_range)))
+    fig.update_layout(title='Rate-Distortion Curve (PSNR vs. File Size)', xaxis_title='File Size (bytes)', yaxis_title='PSNR (dB)')
+    fig.show()
 
     # display_images(original_image, Image.open(jpeg_compressed_image))
     # display_images(original_image, Image.open(jpeg2000_compressed_image))

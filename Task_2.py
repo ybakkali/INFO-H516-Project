@@ -55,6 +55,45 @@ def create_y4m_video(video_path, frames, metadata):
             # Write the frame data
             file.write(frame_bytes)
 
+def rate_distortion_curve_task2(frames, quantization_matrix, fps, num_blocks_height, num_blocks_width, block_size, decimals):
+      
+    psnr_values = []
+    bps_values = []
+    quantization_levels = [1] + [2 ** i for i in range(1, 6)]
+    for quantization_level in quantization_levels:
+
+        print(f"Quantization level: {quantization_level}")
+        psnr_sum, size_sum = 0, 0
+
+        for frame in frames:
+
+            # Encode frame
+            bitstream, codec = encode(frame, quantization_matrix * quantization_level, num_blocks_height, num_blocks_width, block_size, decimals)
+
+            # Calculate frame size in bits
+            size_sum += len(bitstream) * 8
+
+            # Decode frame
+            decoded_frame = decode(bitstream, codec, quantization_matrix * quantization_level, num_blocks_height, num_blocks_width, block_size, decimals)
+
+            # Calculate PSNR
+            psnr_sum += PSNR(frame, decoded_frame)
+
+        # Calculate average PSNR and BPS
+        psnr = psnr_sum / len(frames)
+        bps = size_sum / (len(frames) / fps)
+
+        # Store PSNR and BPS values
+        psnr_values.append(round(psnr, 2))
+        bps_values.append(round(bps/ 1000, 2))
+
+    return psnr_values, bps_values, quantization_levels
+
+def plot_rate_distortion_curve(psnr_values, bps_values, levels):
+    fig = go.Figure(data=go.Scatter(x=bps_values, y=psnr_values, mode='lines+markers', text=levels))
+    fig.update_layout(title='Rate-Distortion Curve', xaxis_title='BitsPerSecond (kbps)', yaxis_title='PSNR (dB)')
+    fig.show()
+
 if __name__ == "__main__":
 
     filename = "media/input/foreman_qcif_mono.y4m"
@@ -72,19 +111,22 @@ if __name__ == "__main__":
                                     [49, 64, 78, 87, 103, 121, 120, 101],
                                     [72, 92, 95, 98, 112, 100, 103, 99]])
 
-    encoded_frames = []
-    t = time.time()
-    for i, frame in enumerate(frames):
-        print(f"Encoding frame {i}")
-        bitstream, codec = encode(frame, quantization_matrix, num_blocks_height, num_blocks_width, block_size, decimals)
-        encoded_frames.append((bitstream, codec))
+    # encoded_frames = []
+    # t = time.time()
+    # for i, frame in enumerate(frames):
+    #     print(f"Encoding frame {i}")
+    #     bitstream, codec = encode(frame, quantization_matrix, num_blocks_height, num_blocks_width, block_size, decimals)
+    #     encoded_frames.append((bitstream, codec))
 
-    compressed_frames = []
-    for i, encoded_frame in enumerate(encoded_frames):
-        print(f"Decoding frame {i}")
-        bitstream, codec = encoded_frame
-        decoded_frame = decode(bitstream, codec, quantization_matrix, num_blocks_height, num_blocks_width, block_size, decimals)
-        compressed_frames.append(decoded_frame)
+    # compressed_frames = []
+    # for i, encoded_frame in enumerate(encoded_frames):
+    #     print(f"Decoding frame {i}")
+    #     bitstream, codec = encoded_frame
+    #     decoded_frame = decode(bitstream, codec, quantization_matrix, num_blocks_height, num_blocks_width, block_size, decimals)
+    #     compressed_frames.append(decoded_frame)
     
-    print(f"Time: {round(time.time() - t, 2)}")
-    create_y4m_video("media/output/foreman_qcif_mono_task2.y4m", compressed_frames, metadata)
+    # print(f"Time: {round(time.time() - t, 2)}")
+    # create_y4m_video("media/output/foreman_qcif_mono_task2.y4m", compressed_frames, metadata)
+
+    psnr_values, bps_values, quantization_levels = rate_distortion_curve_task2(frames[:30], quantization_matrix, 30, num_blocks_height, num_blocks_width, block_size, decimals)
+    plot_rate_distortion_curve(psnr_values, bps_values, quantization_levels)
