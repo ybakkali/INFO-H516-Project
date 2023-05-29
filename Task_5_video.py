@@ -2,6 +2,7 @@ from moviepy.editor import VideoFileClip
 import os
 from Task_1 import *
 from Task_2 import *
+from Task_3 import *
 
 def rate_distortion_curve_task5(input_path, output_path, codec):
       
@@ -48,11 +49,13 @@ def rate_distortion_curve_task5(input_path, output_path, codec):
 def plot_curves():
 
     psnr_values, bps_values, quantization_levels = rate_distortion_curve_task2(frames[:30], quantization_matrix, 30, num_blocks_height, num_blocks_width, block_size, decimals)
+    psnr_values_D_frame, bps_values_D_frame, quantization_levels_D_frame = rate_distortion_curve_task3(frames[:30], quantization_matrix, 30, num_blocks_height, num_blocks_width, block_size, decimals)
     psnr_values_h264, bps_values_h264, ratios_h264 = rate_distortion_curve_task5(input_video_path, output_video_path_h264, 'libx264')
     psnr_values_h265, bps_values_h265, ratios_h265 = rate_distortion_curve_task5(input_video_path, output_video_path_h265, 'libx265')
 
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=bps_values, y=psnr_values, mode='lines+markers', name='Task 2', text=quantization_levels))
+    fig.add_trace(go.Scatter(x=bps_values_D_frame, y=psnr_values_D_frame, mode='lines+markers', name='Task 3', text=quantization_levels_D_frame))
     fig.add_trace(go.Scatter(x=bps_values_h264, y=psnr_values_h264, mode='lines+markers', name='H.264', text=ratios_h264))
     fig.add_trace(go.Scatter(x=bps_values_h265, y=psnr_values_h265, mode='lines+markers', name='H.265', text=ratios_h265))
     fig.update_layout(title='Rate-Distortion Curve', xaxis_title='BitsPerSecond (kbps)', yaxis_title='PSNR (dB)')

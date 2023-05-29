@@ -356,7 +356,7 @@ def rate_distortion_curve(gray_image, type, quantization_matrix, num_blocks_heig
     # Create an empty array to store the PSNR values
     psnr_values = []
     x_values = []
-    quantization_levels = np.arange(0.1, 1.1, 0.1)
+    quantization_levels = np.concatenate((np.arange(0.1, 1.1, 0.1), [2 ** i for i in range(1, 6)]))
 
     # Control of the compression rate
     for i in quantization_levels:
@@ -388,7 +388,7 @@ def rate_distortion_curve(gray_image, type, quantization_matrix, num_blocks_heig
         raise Exception('Invalid type')
     
     fig = go.Figure(data=go.Scatter(x=x_values, y=psnr_values, mode='lines+markers', name='lines+markers', text=np.round(quantization_levels, 1)))
-    fig.update_layout(title='Rate-Distortion Curve (PSNR vs. Quantization Scale)', xaxis_title=label, yaxis_title='PSNR (dB)')
+    fig.update_layout(title=f'Rate-Distortion Curve (PSNR vs. {label})', xaxis_title=label, yaxis_title='PSNR (dB)')
     fig.show()
 
 def display_images(original_image, compressed_image):
@@ -426,7 +426,6 @@ if __name__ == "__main__":
                                     [49, 64, 78, 87, 103, 121, 120, 101],
                                     [72, 92, 95, 98, 112, 100, 103, 99]])
 
-    quantization_matrix *= 1
     gray_image = open_raw_image(filename, image_width, image_height)
     # t = time.time()
     # encoded_image, codec = encode(gray_image, quantization_matrix, num_blocks_height, num_blocks_width, block_size, decimals)

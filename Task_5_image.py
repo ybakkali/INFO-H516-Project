@@ -26,7 +26,7 @@ if __name__ == "__main__":
                                     [49, 64, 78, 87, 103, 121, 120, 101],
                                     [72, 92, 95, 98, 112, 100, 103, 99]])
 
-    quantization_matrix *= 1
+
     gray_image = open_raw_image(filename, image_width, image_height)
     gray_image_PIL = open_raw_image_PIL(filename, image_width, image_height)
 
@@ -35,7 +35,7 @@ if __name__ == "__main__":
     psnr_values_task1 = []
     file_sizes_task1 = []
     # scale from 0.1 to 1.0 (best) and from 10 to 90 (worst) representing the quantization scale factor
-    quantization_levels = np.concatenate((np.arange(0.1, 1.1, 0.1), np.arange(5, 30, 5)))
+    quantization_levels = np.concatenate((np.arange(0.1, 1.1, 0.1), [2 ** i for i in range(1, 6)]))
 
     # Iterate over the quantization matrix
     for i in quantization_levels:

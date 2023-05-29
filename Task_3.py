@@ -63,6 +63,45 @@ def decode_D_frame(bitstream, I_frame, codec, quantization_matrix, num_blocks_he
     # Return the D-frame
     return D_frame
 
+def rate_distortion_curve_task3(frames, quantization_matrix, fps, num_blocks_height, num_blocks_width, block_size, decimals):
+      
+    psnr_values = []
+    bps_values = []
+    quantization_levels = [1] + [2 ** i for i in range(1, 6)]
+    for quantization_level in quantization_levels:
+
+        print(f"Quantization level: {quantization_level}")
+        psnr_sum, size_sum = 0, 0
+
+        for i, frame in enumerate(frames):
+
+            # Encode frame
+            if i % 5 == 0:
+                bitstream, codec = encode(frame, quantization_matrix * quantization_level, num_blocks_height, num_blocks_width, block_size, decimals)
+                I_frame = decode(bitstream, codec, quantization_matrix * quantization_level, num_blocks_height, num_blocks_width, block_size, decimals)
+            else:
+                bitstream, codec = encode_D_frame(frame, I_frame, quantization_matrix * quantization_level, num_blocks_height, num_blocks_width, block_size, decimals)
+        
+            # Calculate frame size in bits
+            size_sum += len(bitstream) * 8
+
+            # Decode frame
+            decoded_frame = decode_D_frame(bitstream, I_frame, codec, quantization_matrix * quantization_level, num_blocks_height, num_blocks_width, block_size, decimals)
+
+            # Calculate PSNR
+            psnr_sum += PSNR(frame, decoded_frame)
+
+        # Calculate average PSNR and BPS
+        psnr = psnr_sum / len(frames)
+        bps = size_sum / (len(frames) / fps)
+
+        # Store PSNR and BPS values
+        psnr_values.append(round(psnr, 2))
+        bps_values.append(round(bps/ 1000, 2))
+
+    return psnr_values, bps_values, quantization_levels
+
+
 
 if __name__ == "__main__":
 
@@ -81,29 +120,32 @@ if __name__ == "__main__":
                                     [49, 64, 78, 87, 103, 121, 120, 101],
                                     [72, 92, 95, 98, 112, 100, 103, 99]])
 
-    compressed_frames = []
-    t = time.time()
-    for i, frame in enumerate(frames):
-        print(f"Encoding frame {i}")
-        if i % 5 == 0:
-            bitstream, codec = encode(frame, quantization_matrix, num_blocks_height, num_blocks_width, block_size, decimals)
-            I_frame = decode(bitstream, codec, quantization_matrix, num_blocks_height, num_blocks_width, block_size, decimals)
-        else:
-            bitstream, codec = encode_D_frame(frame, I_frame, quantization_matrix, num_blocks_height, num_blocks_width, block_size, decimals)
+    # compressed_frames = []
+    # t = time.time()
+    # for i, frame in enumerate(frames):
+    #     print(f"Encoding frame {i}")
+    #     if i % 5 == 0:
+    #         bitstream, codec = encode(frame, quantization_matrix, num_blocks_height, num_blocks_width, block_size, decimals)
+    #         I_frame = decode(bitstream, codec, quantization_matrix, num_blocks_height, num_blocks_width, block_size, decimals)
+    #     else:
+    #         bitstream, codec = encode_D_frame(frame, I_frame, quantization_matrix, num_blocks_height, num_blocks_width, block_size, decimals)
         
-        compressed_frames.append((bitstream, codec)) 
+    #     compressed_frames.append((bitstream, codec)) 
 
-    decompressed_frames = []
-    for i, compressed_frame in enumerate(compressed_frames):
-        print(f"Decoding frame {i}")
-        bitstream, codec = compressed_frame
+    # decompressed_frames = []
+    # for i, compressed_frame in enumerate(compressed_frames):
+    #     print(f"Decoding frame {i}")
+    #     bitstream, codec = compressed_frame
 
-        if i % 5 == 0:     
-            I_frame = decode(bitstream, codec, quantization_matrix, num_blocks_height, num_blocks_width, block_size, decimals) 
-            decompressed_frames.append(I_frame)
-        else:
-            decoded_frame = decode_D_frame(bitstream, I_frame, codec, quantization_matrix, num_blocks_height, num_blocks_width, block_size, decimals)
-            decompressed_frames.append(decoded_frame)
+    #     if i % 5 == 0:     
+    #         I_frame = decode(bitstream, codec, quantization_matrix, num_blocks_height, num_blocks_width, block_size, decimals) 
+    #         decompressed_frames.append(I_frame)
+    #     else:
+    #         decoded_frame = decode_D_frame(bitstream, I_frame, codec, quantization_matrix, num_blocks_height, num_blocks_width, block_size, decimals)
+    #         decompressed_frames.append(decoded_frame)
     
-    print(f"Time: {round(time.time() - t, 2)}")
-    create_y4m_video("media/output/foreman_qcif_mono_task3.y4m", decompressed_frames, metadata)
+    # print(f"Time: {round(time.time() - t, 2)}")
+    # create_y4m_video("media/output/foreman_qcif_mono_task3.y4m", decompressed_frames, metadata)
+
+    psnr_values, bps_values, quantization_levels = rate_distortion_curve_task3(frames[:30], quantization_matrix, 30, num_blocks_height, num_blocks_width, block_size, decimals)
+    plot_rate_distortion_curve(psnr_values, bps_values, quantization_levels)
