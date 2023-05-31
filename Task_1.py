@@ -53,19 +53,18 @@ def merge_blocks_into_image(image_blocks):
 def dct_1D(array, normalize=True):
     
     N = len(array)
-    dct_coef = np.zeros(N)
+
+    if normalize:
+        # Normalization factors
+        scale_factor = np.sqrt(1/(2*N))
+    else:
+        scale_factor = 1
 
     # Iterate over the 1D array
-    for k in range(N):
-            
-            if normalize:
-                # Normalization factors
-                scale_factor = np.sqrt(1/(4*N)) if k == 0 else np.sqrt(1/(2*N))
-            else:
-                scale_factor = 1
-            
-            # Compute the DCT coefficient
-            dct_coef[k] = scale_factor * 2 * np.sum(array * np.cos(((2 * np.arange(N) + 1) * k * np.pi) / (2*N)))
+    dct_coef = scale_factor * 2 * np.sum(array * np.cos(((2*np.arange(N) + 1) * np.arange(N)[:, np.newaxis] * np.pi) / (2*N)), axis=1)
+
+    if normalize:
+        dct_coef[0] *= np.sqrt(1/2)
 
     return dct_coef
 
@@ -88,20 +87,16 @@ def dct_2D(block):
 def idct_1D(array, normalize=True):
         
     N = len(array)
-    dct_coef = np.zeros(N)
 
-    for k in range(N):
-            
-            if normalize:
-                # Normalization factors
-                scale_factor = 1 / np.sqrt(N)
-                scale_factor_2 = (np.sqrt(2)/ 2) * scale_factor
-            else:
-                scale_factor = 1
-                scale_factor_2 = 1
-            
-            # Compute the DCT coefficient
-            dct_coef[k] = scale_factor * array[0] + scale_factor_2 * 2 * np.sum(array[1:] * np.cos(((2*k + 1) * np.arange(1, N) * np.pi) / (2*N)))
+    if normalize:
+        # Normalization factors
+        scale_factor = 1 / np.sqrt(N)
+        scale_factor_2 = (np.sqrt(2)/ 2) * scale_factor
+    else:
+        scale_factor = 1
+        scale_factor_2 = 1
+
+    dct_coef = scale_factor * array[0] + scale_factor_2 * 2 * np.sum(array[1:] * np.cos(((2*np.arange(0, N)[:, np.newaxis] + 1) * np.arange(1, N) * np.pi) / (2*N)), axis=1)
 
     return dct_coef
 
