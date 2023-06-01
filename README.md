@@ -3,6 +3,7 @@
 ## Exercises
 - [Assignment](INFO-H516_Exercises.pdf)
 - [Report](/report/Report.pdf)
+- [Presentation](/presentation/Visual_Media_Presentation.pdf)
 
 
 ### Image encoding and decoding

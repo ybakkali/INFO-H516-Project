@@ -18,16 +18,18 @@ def rate_distortion_curve_task5(input_path, output_path, codec):
         bitrate = (size * 8 / 1000) / duration
 
         # numpy array of 2 powers
-        ratios = np.array([2 ** i for i in range(1, 6)])
+        # ratios = np.array([2 ** i for i in range(1, 6)])
         # Calculate the target bitrates based on the compression ratios
-        target_bitrates = bitrate / ratios
+        # target_bitrates = bitrate / ratios
 
-        for target_bitrate in target_bitrates:
+        crf_levels = np.arange(0, 52, 5)
 
-            print(f"Target bitrate: {target_bitrate} kbps")
+        for crf in crf_levels:
+
+            print(f"Constant Rate Factor: {crf}")
 
             # Set the target bitrate (in kbps)
-            video_clip.write_videofile(output_path, codec=codec, bitrate=f'{target_bitrate}k', logger=None)
+            video_clip.write_videofile(output_path, codec=codec, logger=None, ffmpeg_params=["-pix_fmt", "yuv420p", "-crf", str(crf)])
 
             with VideoFileClip(output_path, audio=False, fps_source='fps') as video_clip_compressed:
 
@@ -43,13 +45,13 @@ def rate_distortion_curve_task5(input_path, output_path, codec):
             psnr_values.append(round(psnr, 2))
             bps_values.append(round(bps/ 1000, 2))
 
-    return psnr_values, bps_values, ratios
+    return psnr_values, bps_values, crf_levels
 
 
 def plot_curves():
 
     psnr_values, bps_values, quantization_levels = rate_distortion_curve_task2(frames[:30], quantization_matrix, 30, num_blocks_height, num_blocks_width, block_size, decimals)
-    psnr_values_D_frame, bps_values_D_frame, quantization_levels_D_frame = rate_distortion_curve_task3(frames[:30], quantization_matrix, 30, num_blocks_height, num_blocks_width, block_size, decimals)
+    psnr_values_D_frame, bps_values_D_frame, quantization_levels_D_frame = rate_distortion_curve_task3(frames[:30], 5, quantization_matrix, 30, num_blocks_height, num_blocks_width, block_size, decimals)
     psnr_values_h264, bps_values_h264, ratios_h264 = rate_distortion_curve_task5(input_video_path, output_video_path_h264, 'libx264')
     psnr_values_h265, bps_values_h265, ratios_h265 = rate_distortion_curve_task5(input_video_path, output_video_path_h265, 'libx265')
 
