@@ -17,7 +17,7 @@
 %\usepackage{parskip}
 \usepackage{svg}
 \usepackage{geometry}
-\renewcommand{\baselinestretch}{1.15}
+%\renewcommand{\baselinestretch}{1.15}
 \usepackage{changepage}
 
 \usepackage{tikz}
@@ -597,6 +597,8 @@ In terms of decoder implementation, we iterate over each frame of the coded imag
 \subsection{Evaluation}
 \subsubsection{Objective}
 
+\figref{task2} checks the PSNR values according to the number of bits of videos per second for task 2. As we can see higher bps values lead to higher PSNR values and so on higher video quality. The reason for that is similar to our explanation for task 1. When we have higher bps values, it means that each second contains more frames so the noise will affect the lower portion of frames. 
+
 \begin{figure}[H]
   \centering
   \includegraphics[width=\textwidth]{Project/images/task2.png}
@@ -604,10 +606,23 @@ In terms of decoder implementation, we iterate over each frame of the coded imag
   \label{fig:task2}
 \end{figure}
 
-\figref{task2} checks the PSNR values according to the number of bits of videos per second for task 2. As we can see higher bps values lead to higher PSNR values and so on higher video quality. The reason for that is similar to our explanation for task 1. When we have higher bps values, it means that each second contains more frames so the noise will affect the lower portion of frames. 
+\subsubsection{Subjective}
 
+We have taken two frames from the video and compared them. The compressed images are less sharp than the original, but still of good quality.
 
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{Project/images/task2-sub.png}
+  \caption{Frame from the original video (left) vs compressed video (right)}
+  \label{fig:task2-sub}
+\end{figure}
 
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{Project/images/task2-sub2.png}
+  \caption{Frame from the original video (left) vs compressed video (right)}
+  \label{fig:task2-sub2}
+\end{figure}
 
 \section{Task 3}
 \subsection{Description}
@@ -622,6 +637,8 @@ The implementation differs from task 2 in that, for D-frame, we don't code the a
 \subsection{Evaluation}
 \subsubsection{Objective}
 
+\figref{task3} checks the PSNR values according to the number of bits of videos per second for task 3. As we can see higher bps values lead to higher PSNR values and so on higher video quality. The reason for that can be considered the same as our explanation for task 2.
+
 \begin{figure}[H]
   \centering
   \includegraphics[width=\textwidth]{Project/images/task3.png}
@@ -629,8 +646,23 @@ The implementation differs from task 2 in that, for D-frame, we don't code the a
   \label{fig:task3}
 \end{figure}
 
-\figref{task3} checks the PSNR values according to the number of bits of videos per second for task 3. As we can see higher bps values lead to higher PSNR values and so on higher video quality. The reason for that can be considered the same as our explanation for task 2.
+\subsubsection{Subjective}
 
+We have taken two frames from the video and compared them. The compressed images are less sharp than the original, but still of good quality.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{Project/images/task3-sub.png}
+  \caption{Frame from the original video (left) vs compressed video (right)}
+  \label{fig:task3-sub}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{Project/images/task3-sub2.png}
+  \caption{Frame from the original video (left) vs compressed video (right)}
+  \label{fig:task3-sub2}
+\end{figure}
 
 \section{Task 5}
 \subsection{Description}
@@ -645,6 +677,9 @@ In our implementation, we utilized the Python Imaging Library (PIL) for testing 
 \subsection{Evaluation}
 \subsubsection{Objective}
 
+As \figref{task5img} shows JPEG2000 gives always better PSNR values. The second position belongs to JPEG and the last one belongs to our implementation. But as you can see there is only a little difference between JPEG and our implementation.
+
+
 \begin{figure}[H]
   \centering
   \includegraphics[width=\textwidth]{Project/images/task5_image.png}
@@ -652,8 +687,7 @@ In our implementation, we utilized the Python Imaging Library (PIL) for testing 
   \label{fig:task5img}
 \end{figure}
 
-As \figref{task5img} shows JPEG2000 gives always better PSNR values. The second position belongs to JPEG and the last one belongs to our implementation. But as you can see there is only a little difference between JPEG and our implementation.
-
+As \figref{task5vid} shows, H.265 always gives better PSNR values. Second place goes to H.264. Both codecs are much better than our implementations. Also, the task 3 codec gives better PSNR results than the task 2 codec for the same quantization scales.
 
 \begin{figure}[H]
   \centering
@@ -661,8 +695,6 @@ As \figref{task5img} shows JPEG2000 gives always better PSNR values. The second 
   \caption{Rate-Distortion Curve (PSNR vs. BitsPerSecond)}
   \label{fig:task5vid}
 \end{figure}
-
-As \figref{task5vid} shows H.264 gives always better PSNR values. The second position belongs to H.265. Our implementation for task 2 gives better results for the videos which has bps higher than 500 while for bps lower than 500, task 3 implementation is better.
 
 \subsubsection{Subjective}
 
